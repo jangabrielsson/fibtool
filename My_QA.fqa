@@ -1,0 +1,83 @@
+{
+  "name": "My QA",
+  "type": "com.fibaro.binarySwitch",
+  "apiVersion": "1.2",
+  "initialProperties": {
+    "viewLayout": {
+      "$jason": {
+        "body": {
+          "header": {
+            "style": {
+              "height": "0"
+            },
+            "title": "quickApp_device_1090"
+          },
+          "sections": {
+            "items": [
+              {
+                "components": [
+                  {
+                    "name": "label1",
+                    "style": {
+                      "weight": "1.2"
+                    },
+                    "text": "Label",
+                    "type": "label",
+                    "visible": true
+                  },
+                  {
+                    "style": {
+                      "weight": "0.5"
+                    },
+                    "type": "space"
+                  }
+                ],
+                "style": {
+                  "weight": "1.2"
+                },
+                "type": "vertical"
+              },
+              {
+                "components": [
+                  {
+                    "name": "label2",
+                    "style": {
+                      "weight": "1.2"
+                    },
+                    "text": "Label",
+                    "type": "label",
+                    "visible": true
+                  },
+                  {
+                    "style": {
+                      "weight": "0.5"
+                    },
+                    "type": "space"
+                  }
+                ],
+                "style": {
+                  "weight": "1.2"
+                },
+                "type": "vertical"
+              }
+            ]
+          }
+        },
+        "head": {
+          "title": "quickApp_device_1090"
+        }
+      }
+    },
+    "uiCallbacks": [],
+    "quickAppVariables": [],
+    "typeTemplateInitialized": true
+  },
+  "files": [
+    {
+      "name": "main",
+      "isMain": true,
+      "isOpen": true,
+      "content": "function table.meta(tab)\n  local old = Temp\n  class 'Temp'\n  function Temp:__init() end\n  meta,Temp = Temp,old\n  return meta\nend\n\nfunction setmetatable(tab,meta)\n   local o = meta()\n   for k,v in pairs(tab) do o[k]=v end\n   return o\nend\n\n--local mt = table.meta({})\n--local t = setmetatable({a=9},mt)\n--mt.__tostring = function(o) return o.a end\n--print(t)\n\nlocal n,t0=100000\nlocal function printf(...) print(string.format(...)) end\n\na = {\n    b = function() end\n}\n\nc = function() end\n\nlocal d = function() end\nprint(\"----------\")\nt0 = os.clock()\nfor i=1,n do a.b() end  \nlocal v0 = (os.clock()-t0)*1000\nprint(string.format(\"Time '%s' = %0.6f\",'a',v0/n))\n\nt0 = os.clock()\nfor i=1,n do c() end\nlocal v1 = (os.clock()-t0)*1000 \nprint(string.format(\"Time '%s' = %0.6f\",'c',v1/n))\n\nt0 = os.clock()\nfor i=1,n do d() end \nlocal v2 = (os.clock()-t0)*1000\nprint(string.format(\"Time '%s' = %0.6f\",'d',v2/n))\n \nt0 = os.clock()\nfor i=1,n do pcall(d) end \nlocal v3 = (os.clock()-t0)*1000\nprint(string.format(\"Time '%s' = %0.6f\",'d2',v3/n))\n \nprint((v3-v2)/n)\nprint (((v3-v2)/n)/((v0-v2)/n))\nlocal save = (v0-v2)/n \nprintf(\"Saving %0.6f milliseconds per call, using local fun vs global table fun\",save) \nprintf(\"Saving %0.3f seconds per month, using 4 calls / second\",30*24*3600*4*save/1000) \n\nlocal function text(lbl,qa)\n   local self,txt = {},\"\"\n   function self:print(str)\n     str = str:gsub(\".\",{['\\n']='<br>',[' ']='&nbsp'})\n     txt = txt..str\n     self:update()\n   end \n   function self:setwidth(n)\n   end \n   function self:update()\n     qa:updateView(lbl,\"text\",txt)\n   end\n   return self \nend \n\nfunction QuickApp:onInit()\n  --local t = text('label1',self) \n  --t:print(\" This is a\\n\")\n  --t:print(\"test\\n\")\n  --t:print(\"<ol><li>A</li><li>B</li></ol>\")\n  self:updateView(\"label1\",\"text\",[[<span width='100' align='left'>Hello</span>]]) \n  self:updateView(\"label2\",\"text\",[[<span width='100' align='right'>Hello</span>]]) \n --self:updateView(\"label1\",\"text\",\"Hello\") \n\nend"
+    }
+  ]
+}
