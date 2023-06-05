@@ -51,7 +51,7 @@ def httpGet(path: str) -> str:
             auth=(config['user'], config['password']),
             headers={'Content-Type': 'application/json', 'X-Fibaro-Version': '2'})
     except requests.exceptions.ReadTimeout:
-        return httpGet(str) # add tail recursion? decorator?
+        return httpGet(str)  # add tail recursion? decorator?
     if resp.status_code != 200:
         raise Exception('GET {} {}'.format(url, resp.status_code))
     else:
