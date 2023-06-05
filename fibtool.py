@@ -7,7 +7,7 @@ import os
 import re
 from datetime import datetime
 
-TIMEOUT = 5
+TIMEOUT = 20
 config = {}
 
 tqaeHeader = """
@@ -21,7 +21,7 @@ _=loadfile and loadfile("TQAE.lua"){
 }"""
 
 
-def dict2lua(d, simple=False) -> str:
+def dict2lua(d: dict, simple=False) -> str:
     s = "{"
     for k, v in d.items():
         key = k if simple else f"[\"{k}\"]"
@@ -41,21 +41,24 @@ def arr2lua(d: dict) -> str:
     return s
 
 
-def httpGet(path) -> str:
+def httpGet(path: str) -> str:
     global config
     url = f"http://{config['ip']}/api{path}"
-    resp = requests.get(
-        url,
-        timeout=TIMEOUT,
-        auth=(config['user'], config['password']),
-        headers={'Content-Type': 'application/json', 'X-Fibaro-Version': '2'})
+    try:
+        resp = requests.get(
+            url,
+            timeout=TIMEOUT,
+            auth=(config['user'], config['password']),
+            headers={'Content-Type': 'application/json', 'X-Fibaro-Version': '2'})
+    except requests.exceptions.ReadTimeout:
+        return httpGet(str) # add tail recursion? decorator?
     if resp.status_code != 200:
         raise Exception('GET {} {}'.format(url, resp.status_code))
     else:
         return resp.text
 
 
-def httpPost(path, data) -> str:
+def httpPost(path: str, data: dict) -> str:
     global config
     url = f"http://{config['ip']}/api{path}"
     resp = requests.post(
@@ -70,7 +73,7 @@ def httpPost(path, data) -> str:
         return resp.text
 
 
-def httpPut(path, data) -> str:
+def httpPut(path: str, data: dict) -> str:
     global config
     url = f"http://{config['ip']}/api{path}"
     resp = requests.put(
@@ -85,7 +88,7 @@ def httpPut(path, data) -> str:
         return resp.text
 
 
-def httpDelete(path: str, data) -> str:
+def httpDelete(path: str, data: dict) -> str:
     global config
     url = f"http://{config['ip']}/api{path}"
     resp = requests.delete(
@@ -99,7 +102,7 @@ def httpDelete(path: str, data) -> str:
         return resp.text
 
 
-def ui(view, uiCallbacks):
+def ui(view: dict, uiCallbacks: dict):
     d = {}
     for cb in uiCallbacks:
         d[cb['name']] = cb['callback']
@@ -122,7 +125,6 @@ def ui(view, uiCallbacks):
 def addTQAEheader(fqa, params, fns):
     if not params.tqae:
         return fqa
-# decode json data
     header = io.StringIO()
     header.write(tqaeHeader+"\n\n")
     header.write(f"--%%name=\"{fqa['name']}\"\n")
@@ -269,7 +271,7 @@ def deleteGV(data, params):
     deleteResource(data['name'], "/globalVariables", params)
 
 
-def getResource(path1, path2, key, args):
+def getResource(path1: str, path2: str, key: str, args) -> list:
     if args.id:
         rsrcs = []
         simple = path1 == path2
@@ -293,7 +295,7 @@ def getResource(path1, path2, key, args):
         return []
 
 
-def parse_cmd():
+def parse_cmd() -> None:
     global config
     parser = argparse.ArgumentParser(
                     prog='fibtool',
