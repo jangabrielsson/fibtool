@@ -36,6 +36,52 @@ def arr2lua(d):
     s += "}"
     return s
 
+def httpGet(path):
+    global config
+    url = f"http://{config['ip']}/api{path}"
+    resp = requests.get(url, 
+                        auth=(config['user'], config['password']),
+                        headers={'Content-Type': 'application/json','X-Fibaro-Version': '2'})
+    if resp.status_code != 200:
+        raise Exception('GET {} {}'.format(url,resp.status_code))
+    else:
+        return resp.text
+
+def httpPost(path,data):
+    global config
+    url = f"http://{config['ip']}/api{path}"
+    resp = requests.post(url, 
+                        auth=(config['user'], config['password']),
+                        headers={'Content-Type': 'application/json','X-Fibaro-Version': '2'},
+                        data=json.dumps(data))
+    if resp.status_code != 200:
+        raise Exception('GET {} {}'.format(url,resp.status_code))
+    else:
+        return resp.text
+    
+def httpPut(path,data):
+    global config
+    url = f"http://{config['ip']}/api{path}"
+    resp = requests.put(url, 
+                        auth=(config['user'], config['password']),
+                        headers={'Content-Type': 'application/json','X-Fibaro-Version': '2'},
+                        data = json.dumps(data))
+    if resp.status_code != 200:
+        raise Exception('PUT {} {}'.format(url,resp.status_code))
+    else:
+        return resp.text
+
+def httpDelete(path,data):
+    global config
+    url = f"http://{config['ip']}/api{path}"
+    resp = requests.delete(url, 
+                        auth=(config['user'], config['password']),
+                        headers={'Content-Type': 'application/json','X-Fibaro-Version': '2'})
+    if resp.status_code != 200:
+        raise Exception('DELETE {} {}'.format(url,resp.status_code))
+    else:
+        return resp.text
+    
 def ui(view,uiCallbacks):
     dict = {}
     for cb in uiCallbacks:
@@ -97,6 +143,33 @@ def addTQAEheader(fqa,params,fns):
             f['content'] = header.getvalue() + f['content']
             break
     return fqa
+
+def showTrigger(args):
+    last = 0
+    while (True):
+        data = httpGet("/refreshStates?last="+str(last))
+        data = json.loads(data)
+        last = data['last']
+        if data.get('events'):
+            for e in data['events']:
+                epoc = e['createdMillis'];
+                date = datetime.fromtimestamp(epoc // 1000);
+                h = f"{date.strftime('%m-%d/%H:%M:%S/')}{(epoc % 1000):03d}:{e['type']}"
+                d = json.dumps(e['data'])
+                styp = e.get('sourceType')
+                who = ""
+                if styp:
+                    if styp=='system':
+                        who = "S:"
+                    elif styp=='user':
+                        who = f"U{e.get('sourceId')}:"
+                    else:
+                        who=styp+":"
+                st = f"{h:<45}:{who}{d}"
+                # print(e)
+                print(st[:160])
+    pass
+
 
 now = datetime.now()
 
@@ -181,19 +254,6 @@ def getResource(path1,path2,key,args):
     else:
         return []
 
-#fun(args.file.read(),args)
-
-def httpGet(path):
-    global config
-    url = f"http://{config['ip']}/api{path}"
-    resp = requests.get(url, 
-                        auth=(config['user'], config['password']),
-                        headers={'Content-Type': 'application/json','X-Fibaro-Version': '2'})
-    if resp.status_code != 200:
-        raise Exception('GET {} {}'.format(url,resp.status_code))
-    else:
-        return resp.text
-
 def parse_cmd():
     global config
     parser = argparse.ArgumentParser(
@@ -207,17 +267,17 @@ def parse_cmd():
     except:
         config = {}
 
-    parser.add_argument('resource', help='hc3 resource',choices=['qa','scene','gv'])
-    parser.add_argument('command', help='command to execute',choices=['get','upload','restore','delete','info'])
+    parser.add_argument('resource', help='hc3 resource',choices=['qa','scene','gv','trigger'])
+    parser.add_argument('command', help='command to execute',choices=['get','upload','patch','delete','info','show'])
     parser.add_argument('-id', '--id',help='resource id on HC3')
     parser.add_argument('-n', '--name', help='resource name on hc3')
     parser.add_argument('-f', '--file', nargs='?', type=argparse.FileType('r'),default=sys.stdin)
-    parser.add_argument('-s', '--split', nargs='?', action='store', const='%N', help='split directory name, supports Supports %ID,%N and strftime args. Default "%N"')
+    parser.add_argument('-s', '--split', nargs='?', action='store', const='%N', help='split directory name, supports Supports %%ID,%%N and strftime args. Default "%%N"')
     parser.add_argument('-d', '--dir', help='directory for output, template supporting strftime args')
     parser.add_argument('-ip', '--ip', help='ip address to hc3')
     parser.add_argument('-u', '--user', help='user at hc3')
     parser.add_argument('-p', '--password', help='password at hc3')
-    parser.add_argument('-t', '--template', default="%ID_%N", help='name template for output file. Supports %ID,%N and strftime args. Default "%ID_%N"')
+    parser.add_argument('-t', '--template', default="%ID_%N", help='name template for output file. Supports %%ID,%%N and strftime args. Default "%%ID_%%N"')
     parser.add_argument('-tqae', '--tqae', action='store_const', const=True,  help='add TQAE headers to main file of QA if missing')
     parser.add_argument('-dry', '--dry', action='store_const', const=True, help="don't write any file or make changes on hc3")
     args = parser.parse_args()
@@ -233,7 +293,7 @@ def parse_cmd():
                         dumpFqa(qa,args)
                 case 'upload':
                     pass
-                case 'restore':
+                case 'patch':
                     pass
                 case 'delete':
                     pass
@@ -247,7 +307,7 @@ def parse_cmd():
                         dumpScene(scene,args)
                 case 'upload':
                     pass
-                case 'restore':
+                case 'patch':
                     pass
                 case 'delete':
                     pass
@@ -263,7 +323,7 @@ def parse_cmd():
                         dumpGV(gv,args)
                 case 'upload':
                     pass
-                case 'restore':
+                case 'patch':
                     pass
                 case 'delete':
                     for gv in getResource("/globalVariables","/globalVariables","name",args):
@@ -271,13 +331,19 @@ def parse_cmd():
                     pass
                 case 'info':
                     pass
+
+        case 'trigger':
+            showTrigger(args)
         
 if __name__ == "__main__":
     if len(sys.argv)==1:
+#        sys.argv="fibtool --help".split()
 #       sys.argv="fibtool qa -f /Users/jangabrielsson/Desktop/dev/fibtool/TelegramBot.fqa".split()
 #       sys.argv="fibtool qa get -id . -d test -t QA%ID_%Y_%N".split()
 #       sys.argv="fibtool gv get -id . -d test".split()
 #       sys.argv="fibtool gv delete -id RPC_.* -d test -dry".split()
-        sys.argv="fibtool qa get -id 54 -s -d test -tqae".split()
+#        sys.argv="fibtool qa get -id 54 -s -d test -tqae".split()
+        # sys.argv="fibtool -h".split()
+        sys.argv="fibtool trigger show".split()
     parse_cmd()
 
