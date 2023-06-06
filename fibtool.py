@@ -4,10 +4,12 @@ import requests
 import io
 import json
 import os
+import signal
 import re
 from datetime import datetime
 
 TIMEOUT = 20
+now = datetime.now()
 config = {}
 
 tqaeHeader = """
@@ -102,7 +104,7 @@ def httpDelete(path: str, data: dict) -> str:
         return resp.text
 
 
-def ui(view: dict, uiCallbacks: dict):
+def ui(view: dict, uiCallbacks: dict) -> list:
     d = {}
     for cb in uiCallbacks:
         d[cb['name']] = cb['callback']
@@ -122,7 +124,7 @@ def ui(view: dict, uiCallbacks: dict):
     return rows
 
 
-def addTQAEheader(fqa, params, fns):
+def addTQAEheader(fqa: dict, params: dict, fns: dict) -> dict:
     if not params.tqae:
         return fqa
     header = io.StringIO()
@@ -166,7 +168,11 @@ def addTQAEheader(fqa, params, fns):
     return fqa
 
 
-def showTrigger(args):
+def showTrigger(args: dict):
+    # catch SIGTERM
+    signal.signal(signal.SIGTERM, lambda a, b: sys.exit(0))
+    signal.signal(signal.SIGINT, lambda a, b: sys.exit(0))
+
     last = 0
     while (True):
         data = httpGet("/refreshStates?last="+str(last))
@@ -192,10 +198,7 @@ def showTrigger(args):
                 print(st[:160])
 
 
-now = datetime.now()
-
-
-def dumpResource(rsrc, params, ext, hook=None):
+def dumpResource(rsrc: dict, params, ext, hook=None) -> None:
     rid = rsrc['keyid']
     rsrc = rsrc['rsrc']
     if not params.split:
@@ -241,33 +244,33 @@ def dumpResource(rsrc, params, ext, hook=None):
                 f.write(json.dumps(rsrc, indent=2))
 
 
-def deleteResource(rid, path, params):
+def deleteResource(rid: str, path: str, params: dict) -> None:
     print(f"Deleting {path}/{rid}")
     if params.dry:
         return
 
 
-def dumpFqa(data, params):
-    return dumpResource(data, params, 'fqa', addTQAEheader)
+def dumpFqa(data, params) -> None:
+    dumpResource(data, params, 'fqa', addTQAEheader)
 
 
-def dumpScene(data, params):
+def dumpScene(data, params) -> None:
     dumpResource(data, params, 'scene')
 
 
-def dumpGV(data, params):
+def dumpGV(data, params) -> None:
     dumpResource(data, params, 'gv')
 
 
-def deleteFqa(data, params):
+def deleteFqa(data, params) -> None:
     deleteResource(data['id'], "/devices", params)
 
 
-def deleteScene(data, params):
+def deleteScene(data, params) -> None:
     deleteResource(data['id'], "/scenes", params)
 
 
-def deleteGV(data, params):
+def deleteGV(data, params) -> None:
     deleteResource(data['name'], "/globalVariables", params)
 
 
